@@ -37,15 +37,12 @@ func main() {
 		logger: logger,
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/healthcheck", app.healthCheckHandler)
-
 	//declare a HTTP server which listens on the port provided in the config struct,
-	//uses the servermux we created as the handler, and writes any log messages to the
+	//uses the httprouter instance returned by the app.routes() as the srv handler, and writes any log messages to the
 	//structures logger at Error level
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
-		Handler:      mux,
+		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -53,7 +50,6 @@ func main() {
 	}
 
 	logger.Info("starting server", "addr", srv.Addr, "env", cfg.env)
-
 	err := srv.ListenAndServe()
 	logger.Error(err.Error())
 	os.Exit(1)
