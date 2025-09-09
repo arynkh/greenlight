@@ -24,7 +24,7 @@ func (r *Runtime) UnmarshalJSON(jsonValue []byte) error {
 	if len(parts) != 2 || parts[1] != "mins" {
 		return ErrInvalidRuntimeFormat
 	}
-
+	//parse the string containing the number into an int32.
 	i, err := strconv.ParseInt(parts[0], 10, 32)
 	if err != nil {
 		return ErrInvalidRuntimeFormat
