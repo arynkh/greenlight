@@ -57,10 +57,18 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	//Write a JSON response containing the user data along with a 201 Created status code
-	err = app.writeJSON(w, http.StatusCreated, envelop{"user": user}, nil)
+	app.background(func() {
+		//Call the Send() method on our Mailer, passing in the user's email address, name of the template
+		//file and the user struct contatining the new user's data
+		err := app.mailer.Send(user.Email, "user_welcome.html", user)
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	})
+
+	// //Write a JSON response containing the user data along with a 202 Accepted status code
+	err = app.writeJSON(w, http.StatusAccepted, envelop{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
-		return
 	}
 }

@@ -45,9 +45,20 @@ func (app *application) serve() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		//Call Shutdown() on our server, passing in the context. Shutdown() will return nil if the graceful shutdown
-		//was successful, or an error.
-		shutdownError <- srv.Shutdown(ctx)
+		//Call Shutdown() on our server, passing in the context.
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			shutdownError <- err
+		}
+
+		app.logger.Info("completing background tasks", "addr", srv.Addr)
+
+		// Call Wait() to block until our WaitGroup counter is zero --- essentially
+		// blocking until the background goroutines have finished. Then we return nil on
+		// the shutdownError channel, to indicate that the shutdown completed without
+		// any issues.
+		app.wg.Wait()
+		shutdownError <- nil
 	}()
 
 	app.logger.Info("starting server", "addr", srv.Addr, "env", app.config.env)
