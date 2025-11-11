@@ -5,6 +5,7 @@ import (
 	"expvar"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -236,11 +237,47 @@ func (app *application) enableCORS(next http.Handler) http.Handler {
 	})
 }
 
+type metricResponseWriter struct {
+	wrapped       http.ResponseWriter
+	statusCode    int
+	headerWritten bool
+}
+
+func newMetricResponseWriter(w http.ResponseWriter) *metricResponseWriter {
+	return &metricResponseWriter{
+		wrapped:    w,
+		statusCode: http.StatusOK,
+	}
+}
+
+func (mrw *metricResponseWriter) Header() http.Header {
+	return mrw.wrapped.Header()
+}
+
+func (mw *metricResponseWriter) WriteHeader(statusCode int) {
+	mw.wrapped.WriteHeader(statusCode)
+
+	if !mw.headerWritten {
+		mw.statusCode = statusCode
+		mw.headerWritten = true
+	}
+}
+
+func (mw *metricResponseWriter) Write(b []byte) (int, error) {
+	mw.headerWritten = true
+	return mw.wrapped.Write(b)
+}
+
+func (mw metricResponseWriter) UnWrap() http.ResponseWriter {
+	return mw.wrapped
+}
+
 func (app *application) metrics(next http.Handler) http.Handler {
 	var (
 		totalRequestsReceived           = expvar.NewInt("total_requests_received")
 		totalResponsesSent              = expvar.NewInt("total_responses_sent")
 		totalProcessingTimeMicroseconds = expvar.NewInt("total_processing_time__μs")
+		totalResponsesSentByStatus      = expvar.NewMap("total_responses_sent_by_status")
 	)
 
 	//will be run for every request
@@ -249,8 +286,14 @@ func (app *application) metrics(next http.Handler) http.Handler {
 
 		totalRequestsReceived.Add(1)
 
+		//Create a new metricsResponseWriter, which wraps the original http.ResponseWriter
+		//value that the metrics middleware received.
+		mw := newMetricResponseWriter(w)
+
 		next.ServeHTTP(w, r)
 		totalResponsesSent.Add(1)
+
+		totalResponsesSentByStatus.Add(strconv.Itoa(mw.statusCode), 1)
 
 		duration := time.Since(start).Microseconds()
 		totalProcessingTimeMicroseconds.Add(duration)
