@@ -20,7 +20,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// const version = "1.0.0" //app version number
 var (
 	version = vcs.Version()
 )
