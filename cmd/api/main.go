@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -14,11 +15,15 @@ import (
 
 	"github.com/arynkh/greenlight/internal/data"
 	"github.com/arynkh/greenlight/internal/mailer"
+	"github.com/arynkh/greenlight/internal/vcs"
 
 	_ "github.com/lib/pq"
 )
 
-const version = "1.0.0" //app version number
+// const version = "1.0.0" //app version number
+var (
+	version = vcs.Version()
+)
 
 // holds all config settings for the app.
 type config struct {
@@ -92,7 +97,14 @@ func main() {
 		return nil
 	})
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
